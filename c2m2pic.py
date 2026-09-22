@@ -47,6 +47,7 @@ class TileType(Enum):
     EXIT = TileInfo(0x14, 6, 2, RenderType.SINGLE)
     CHIP_THE_HERO = TileInfo(0x16, 0, 22, RenderType.DIRECTIONAL)
     BLOCK = TileInfo(0x17, 8, 1, RenderType.DIRECTIONAL)
+    SHIP = TileInfo(0x19, 8, 8, RenderType.DIRECTIONAL)
     GREEN_BUTTON = TileInfo(0x1F, 9, 6, RenderType.SINGLE)
 
     BLUE_BUTTON = TileInfo(0x20, 8, 6, RenderType.SINGLE)
@@ -65,12 +66,19 @@ class TileType(Enum):
     CHIP_SOCKET = TileInfo(0x2C, 4, 2, RenderType.SINGLE)
 
     ANT = TileInfo(0x33, 0, 7, RenderType.DIRECTIONAL)
+    BALL = TileInfo(0x35, 10, 10, RenderType.DIRECTIONAL)
+    FIREBALL = TileInfo(0x38, 15, 9, RenderType.DIRECTIONAL)
 
+    RED_BUTTON = TileInfo(0x39, 10, 6, RenderType.SINGLE)
+    BROWN_BUTTON = TileInfo(0x3A, 11, 6, RenderType.SINGLE)
     SKATES = TileInfo(0x3B, 2, 6, RenderType.LOWER_LAYER)
     SUCTION_BOOTS = TileInfo(0x3C, 3, 6, RenderType.LOWER_LAYER)
     FIRE_BOOTS = TileInfo(0x3D, 1, 6, RenderType.LOWER_LAYER)
     FLIPPERS = TileInfo(0x3E, 0, 6, RenderType.LOWER_LAYER)
 
+    CHERRY_BOMB = TileInfo(0x40, 5, 4, RenderType.LOWER_LAYER)
+    TRAP = TileInfo(0x42, 9, 9, RenderType.SINGLE)
+    CLONE_MACHINE = TileInfo(0x43, 15, 1, RenderType.SINGLE)
     CLUE = TileInfo(0x45, 5, 2, RenderType.SINGLE)
 
 DIRECTIONAL_SPRITES = {
@@ -78,6 +86,12 @@ DIRECTIONAL_SPRITES = {
         [(0, 22), (8,22), (0,23), (8,23)],
     TileType.BLUE_TANK:
         [(0, 8), (2, 8), (4, 8), (6, 8)],
+    TileType.SHIP:
+        [(8, 8), (10, 8), (12, 8), (14, 8)],
+    TileType.FIREBALL:
+        [(15, 9), (15, 9), (15, 9), (15, 9)],
+    TileType.BALL:
+        [(10, 10), (10, 10), (10, 10), (10, 10)],
     TileType.ANT:
         [(0, 7), (4, 7), (8, 7), (12, 7)],
     TileType.BLOCK:
@@ -192,9 +206,7 @@ def decode_tile(data, pos, tile_by_code):
     if tile_type.value.layer == RenderType.DIRECTIONAL:
         direction = data[pos]
         pos += 1
-
         lower_level, pos = decode_tile(data, pos, tile_by_code)
-
         return (tile_type, direction, lower_level), pos
 
     return tile_type, pos
@@ -347,8 +359,8 @@ def main():
     '''
     Example of processing a c2m file
     '''
-    c2m_file = "./cc1/001-020/map004.c2m"  # Replace with the actual C2M file path
-    output_file = "./cc1_done/map004.png"  # Replace with the desired output PNG file path
+    c2m_file = "./cc1/001-020/map005.c2m"  # Replace with the actual C2M file path
+    output_file = "./cc1_done/map005.png"  # Replace with the desired output PNG file path
     c2m_to_pic(c2m_file, output_file)
 
 if __name__ == "__main__":
