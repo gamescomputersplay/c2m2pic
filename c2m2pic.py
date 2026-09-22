@@ -13,6 +13,7 @@ class RenderType(Enum):
     SINGLE = 1
     LOWER_LAYER = 2
     DIRECTIONAL = 3
+    GREEN_TOGGLE_WALL = 4
 
 @dataclass(frozen=True)
 class TileInfo:
@@ -39,12 +40,17 @@ class TileType(Enum):
     FORCE_FLOOR_N = TileInfo(0x0A, 0, 19, RenderType.SINGLE)
     FORCE_FLOOR_E = TileInfo(0x0B, 2, 19, RenderType.SINGLE)
     FORCE_FLOOR_S = TileInfo(0x0C, 1, 19, RenderType.SINGLE)
-    FORCE_FLOOR_W = TileInfo(0x0D, 3 , 19, RenderType.SINGLE)
+    FORCE_FLOOR_W = TileInfo(0x0D, 3, 19, RenderType.SINGLE)
+    GREEN_TOGGLE_WALL = TileInfo(0x0E, 8, 9, RenderType.GREEN_TOGGLE_WALL)
+    GREEN_TOGGLE_FLOOR = TileInfo(0x0F, 0, 9, RenderType.SINGLE)
 
     EXIT = TileInfo(0x14, 6, 2, RenderType.SINGLE)
     CHIP_THE_HERO = TileInfo(0x16, 0, 22, RenderType.DIRECTIONAL)
     BLOCK = TileInfo(0x17, 8, 1, RenderType.DIRECTIONAL)
+    GREEN_BUTTON = TileInfo(0x1F, 9, 6, RenderType.SINGLE)
 
+    BLUE_BUTTON = TileInfo(0x20, 8, 6, RenderType.SINGLE)
+    BLUE_TANK = TileInfo(0x21, 0, 8, RenderType.DIRECTIONAL)
     RED_DOOR = TileInfo(0x22, 0, 1, RenderType.SINGLE)
     BLUE_DOOR = TileInfo(0x23, 1, 1, RenderType.SINGLE)
     YELLOW_DOOR = TileInfo(0x24, 2, 1, RenderType.SINGLE)
@@ -70,6 +76,8 @@ class TileType(Enum):
 DIRECTIONAL_SPRITES = {
     TileType.CHIP_THE_HERO:
         [(0, 22), (8,22), (0,23), (8,23)],
+    TileType.BLUE_TANK:
+        [(0, 8), (2, 8), (4, 8), (6, 8)],
     TileType.ANT:
         [(0, 7), (4, 7), (8, 7), (12, 7)],
     TileType.BLOCK:
@@ -176,6 +184,10 @@ def decode_tile(data, pos, tile_by_code):
     if tile_type.value.layer == RenderType.LOWER_LAYER:
         lower_level, pos = decode_tile(data, pos, tile_by_code)
         return (tile_type, lower_level), pos
+
+    # Exception to how to display toggle-able wall
+    if tile_type.value.layer == RenderType.GREEN_TOGGLE_WALL:
+        return (TileType.GREEN_TOGGLE_WALL, TileType.GREEN_TOGGLE_FLOOR), pos
 
     if tile_type.value.layer == RenderType.DIRECTIONAL:
         direction = data[pos]
@@ -335,8 +347,8 @@ def main():
     '''
     Example of processing a c2m file
     '''
-    c2m_file = "./cc1/001-020/map003.c2m"  # Replace with the actual C2M file path
-    output_file = "./cc1_done/map003.png"  # Replace with the desired output PNG file path
+    c2m_file = "./cc1/001-020/map004.c2m"  # Replace with the actual C2M file path
+    output_file = "./cc1_done/map004.png"  # Replace with the desired output PNG file path
     c2m_to_pic(c2m_file, output_file)
 
 if __name__ == "__main__":
