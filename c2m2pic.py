@@ -5,7 +5,7 @@ import os
 import struct
 from enum import Enum
 from dataclasses import dataclass
-from PIL import Image
+from PIL import Image, ImageDraw
 
 class RenderType(Enum):
     ''' Processing options for tiles 
@@ -44,10 +44,13 @@ class TileType(Enum):
     GREEN_TOGGLE_WALL = TileInfo(0x0E, 8, 9, RenderType.GREEN_TOGGLE_WALL)
     GREEN_TOGGLE_FLOOR = TileInfo(0x0F, 0, 9, RenderType.SINGLE)
 
+    BLUE_TELEPORT = TileInfo(0x11, 4, 10, RenderType.SINGLE)
     EXIT = TileInfo(0x14, 6, 2, RenderType.SINGLE)
     CHIP_THE_HERO = TileInfo(0x16, 0, 22, RenderType.DIRECTIONAL)
     BLOCK = TileInfo(0x17, 8, 1, RenderType.DIRECTIONAL)
     SHIP = TileInfo(0x19, 8, 8, RenderType.DIRECTIONAL)
+    THIN_WALL_S = TileInfo(0x1B, 1, 10, RenderType.LOWER_LAYER)
+    GRAVEL = TileInfo(0x1E, 9, 10, RenderType.SINGLE)
     GREEN_BUTTON = TileInfo(0x1F, 9, 6, RenderType.SINGLE)
 
     BLUE_BUTTON = TileInfo(0x20, 8, 6, RenderType.SINGLE)
@@ -63,10 +66,18 @@ class TileType(Enum):
     GREEN_KEY = TileInfo(0x29, 7, 1, RenderType.LOWER_LAYER)
 
     IC_CHIP = TileInfo(0x2A, 11, 3, RenderType.LOWER_LAYER)
+    EXTRA_IC_CHIP = TileInfo(0x2B, 11, 3, RenderType.LOWER_LAYER)
     CHIP_SOCKET = TileInfo(0x2C, 4, 2, RenderType.SINGLE)
+    POPUP_WALL = TileInfo(0x2D, 8, 10, RenderType.SINGLE)
+    APPEARING_WALL = TileInfo(0x2E, 11, 31, RenderType.SINGLE)
+    INVISIBLE_WALL = TileInfo(0x2F, 9, 31, RenderType.SINGLE)
 
+    SOLID_BLUE_WALL = TileInfo(0x30, 0, 10, RenderType.SINGLE)
+    FAKE_BLUE_WALL = TileInfo(0x31, 10, 31, RenderType.SINGLE)
+    DIRT = TileInfo(0x32, 4, 31, RenderType.SINGLE)
     ANT = TileInfo(0x33, 0, 7, RenderType.DIRECTIONAL)
     BALL = TileInfo(0x35, 10, 10, RenderType.DIRECTIONAL)
+    ANGRY_TEETH = TileInfo(0x37, 0, 11, RenderType.DIRECTIONAL)
     FIREBALL = TileInfo(0x38, 15, 9, RenderType.DIRECTIONAL)
 
     RED_BUTTON = TileInfo(0x39, 10, 6, RenderType.SINGLE)
@@ -75,6 +86,7 @@ class TileType(Enum):
     SUCTION_BOOTS = TileInfo(0x3C, 3, 6, RenderType.LOWER_LAYER)
     FIRE_BOOTS = TileInfo(0x3D, 1, 6, RenderType.LOWER_LAYER)
     FLIPPERS = TileInfo(0x3E, 0, 6, RenderType.LOWER_LAYER)
+    TOOL_THIEF = TileInfo(0x3F, 3, 2, RenderType.SINGLE)
 
     CHERRY_BOMB = TileInfo(0x40, 5, 4, RenderType.LOWER_LAYER)
     TRAP = TileInfo(0x42, 9, 9, RenderType.SINGLE)
@@ -84,6 +96,8 @@ class TileType(Enum):
 DIRECTIONAL_SPRITES = {
     TileType.CHIP_THE_HERO:
         [(0, 22), (8,22), (0,23), (8,23)],
+    TileType.ANGRY_TEETH:
+        [(0, 11), (4, 11), (1, 11), (7, 11)],
     TileType.BLUE_TANK:
         [(0, 8), (2, 8), (4, 8), (6, 8)],
     TileType.SHIP:
@@ -252,7 +266,14 @@ def tile_sprite(sprite_sheet, tile):
         x = tile_type.value.sprite_x * 32
         y = tile_type.value.sprite_y * 32
 
-        return sprite_sheet.crop((x, y, x + 32, y + 32))
+        sprite = sprite_sheet.crop((x, y, x + 32, y + 32))
+
+        # Erase top section of South Thin Wall
+        if tile_type == TileType.THIN_WALL_S:
+            draw = ImageDraw.Draw(sprite)
+            draw.rectangle((0, 0, sprite.width, sprite.height // 2), fill=(0, 0, 0, 0))
+
+        return sprite
 
     # Directional tile: (tile_type, direction, lower_level)
     if len(tile) == 3:
@@ -359,8 +380,8 @@ def main():
     '''
     Example of processing a c2m file
     '''
-    c2m_file = "./cc1/001-020/map005.c2m"  # Replace with the actual C2M file path
-    output_file = "./cc1_done/map005.png"  # Replace with the desired output PNG file path
+    c2m_file = "./cc1/001-020/map010.c2m"  # Replace with the actual C2M file path
+    output_file = "./cc1_done/map010.png"  # Replace with the desired output PNG file path
     c2m_to_pic(c2m_file, output_file)
 
 if __name__ == "__main__":
