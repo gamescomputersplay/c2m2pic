@@ -14,6 +14,7 @@ class RenderType(Enum):
     LOWER_LAYER = 2
     DIRECTIONAL = 3
     GREEN_TOGGLE_WALL = 4
+    THIN_WALLS_OR_CANOPY = 5
 
 @dataclass(frozen=True)
 class TileInfo:
@@ -22,7 +23,7 @@ class TileInfo:
     code: int
     sprite_x: int
     sprite_y: int
-    layer: RenderType
+    render: RenderType
 
 class TileType(Enum):
     ''' List of all tile types
@@ -92,6 +93,8 @@ class TileType(Enum):
     TRAP = TileInfo(0x42, 9, 9, RenderType.SINGLE)
     CLONE_MACHINE = TileInfo(0x43, 15, 1, RenderType.SINGLE)
     CLUE = TileInfo(0x45, 5, 2, RenderType.SINGLE)
+
+    THIN_WALLS_OR_CANOPY = TileInfo(0x6d, 14, 3, RenderType.THIN_WALLS_OR_CANOPY)
 
 DIRECTIONAL_SPRITES = {
     TileType.CHIP_THE_HERO:
@@ -209,15 +212,16 @@ def decode_tile(data, pos, tile_by_code):
         print(f"Warning: Unknown tile code {code:#04x} at position {pos - 1}")
         return None, pos
 
-    if tile_type.value.layer == RenderType.LOWER_LAYER:
+    if tile_type.value.render == RenderType.LOWER_LAYER:
         lower_level, pos = decode_tile(data, pos, tile_by_code)
         return (tile_type, lower_level), pos
 
     # Exception to how to display toggle-able wall
-    if tile_type.value.layer == RenderType.GREEN_TOGGLE_WALL:
+    if tile_type.value.render == RenderType.GREEN_TOGGLE_WALL:
         return (TileType.GREEN_TOGGLE_WALL, TileType.GREEN_TOGGLE_FLOOR), pos
 
-    if tile_type.value.layer == RenderType.DIRECTIONAL:
+    if tile_type.value.render == RenderType.DIRECTIONAL or \
+       tile_type.value.render == RenderType.THIN_WALLS_OR_CANOPY:
         direction = data[pos]
         pos += 1
         lower_level, pos = decode_tile(data, pos, tile_by_code)
@@ -254,14 +258,56 @@ def decode_tiles(map_data):
     return tiles
 
 
-def tile_sprite(sprite_sheet, tile):
+def render_thin_wall_or_canopy(sprite_sheet, tile):
+    ''' Special case: thin tile or canopy
+    '''
+    bitmask = tile[1]
+    underlying_tile = tile[-1]
+    sprite = tile_sprite(sprite_sheet, underlying_tile)
+
+    # North wall
+    if bitmask & 1:
+        wallsprite = sprite_sheet.crop((1*32, 10*32, 1*32 + 32, 10*32 + 32))
+        draw = ImageDraw.Draw(wallsprite)
+        draw.rectangle((0, wallsprite.height // 2, wallsprite.width, wallsprite.height), fill=(0, 0, 0, 0))
+        sprite.alpha_composite(wallsprite)
+
+    # East wall
+    if bitmask & 2:
+        wallsprite = sprite_sheet.crop((2*32, 10*32, 2*32 + 32, 10*32 + 32))
+        draw = ImageDraw.Draw(wallsprite)
+        draw.rectangle((0, 0, wallsprite.width // 2 - 1, wallsprite.height - 1), fill=(0, 0, 0, 0))
+        sprite.alpha_composite(wallsprite)
+
+    # South wall
+    if bitmask & 4:
+        wallsprite = sprite_sheet.crop((1*32, 10*32, 1*32 + 32, 10*32 + 32))
+        draw = ImageDraw.Draw(wallsprite)
+        draw.rectangle((0, 0, wallsprite.width, wallsprite.height // 2), fill=(0, 0, 0, 0))
+        sprite.alpha_composite(wallsprite)
+
+    # West wall
+    if bitmask & 8:
+        wallsprite = sprite_sheet.crop((2*32, 10*32, 2*32 + 32, 10*32 + 32))
+        draw = ImageDraw.Draw(wallsprite)
+        draw.rectangle((wallsprite.width // 2, 0, wallsprite.width - 1, wallsprite.height - 1), fill=(0, 0, 0, 0))
+        sprite.alpha_composite(wallsprite)
+
+
+    if bitmask & 16:
+        # bit 5, canopy. will do when I get to those levels.
+        pass
+
+    return sprite
+
+def tile_sprite(sprite_sheet, tile_stack):
     '''
     From a TileType tuple, return rendered image of a tile,
     with all elements superimposed
     '''
-    # A normal tile
-    if isinstance(tile, TileType):
-        tile_type = tile
+    # A single tile
+    if isinstance(tile_stack, TileType):
+        tile_type = tile_stack
 
         x = tile_type.value.sprite_x * 32
         y = tile_type.value.sprite_y * 32
@@ -276,8 +322,9 @@ def tile_sprite(sprite_sheet, tile):
         return sprite
 
     # Directional tile: (tile_type, direction, lower_level)
-    if len(tile) == 3:
-        tile_type, direction, lower_level = tile
+    if len(tile_stack) == 3 and tile_stack[0].value.render == RenderType.DIRECTIONAL:
+
+        tile_type, direction, lower_level = tile_stack
 
         image = tile_sprite(sprite_sheet, lower_level)
 
@@ -290,10 +337,16 @@ def tile_sprite(sprite_sheet, tile):
 
         return image
 
-    # A stack of tiles: render from the last tile toward the first
-    image = tile_sprite(sprite_sheet, tile[-1])
+    # Thin wall or canopy: (tile_type, mask, lower_level)
+    if len(tile_stack) == 3 and tile_stack[0].value.render == RenderType.THIN_WALLS_OR_CANOPY:
+        image = render_thin_wall_or_canopy(sprite_sheet, tile_stack)
+        return image
 
-    for tile_part in reversed(tile[:-1]):
+    # Remaining case is a tile with a underlying layer
+    # Render from the last tile toward the first
+    image = tile_sprite(sprite_sheet, tile_stack[-1])
+
+    for tile_part in reversed(tile_stack[:-1]):
         overlay = tile_sprite(sprite_sheet, tile_part)
         image.alpha_composite(overlay)
 
@@ -380,8 +433,8 @@ def main():
     '''
     Example of processing a c2m file
     '''
-    c2m_file = "./cc1/001-020/map010.c2m"  # Replace with the actual C2M file path
-    output_file = "./cc1_done/map010.png"  # Replace with the desired output PNG file path
+    c2m_file = "./cc1/001-020/map011.c2m"  # Replace with the actual C2M file path
+    output_file = "./cc1_done/map011.png"  # Replace with the desired output PNG file path
     c2m_to_pic(c2m_file, output_file)
 
 if __name__ == "__main__":
