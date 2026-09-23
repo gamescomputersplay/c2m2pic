@@ -258,6 +258,23 @@ def decode_tiles(map_data):
     return tiles
 
 
+def erase_half(image, side):
+    ''' Helper in case we need only half of teh sprite
+    '''
+    draw = ImageDraw.Draw(image)
+
+    if side == "top":
+        box = (0, 0, image.width - 1, image.height // 2 - 1)
+    elif side == "bottom":
+        box = (0, image.height // 2, image.width - 1, image.height - 1)
+    elif side == "left":
+        box = (0, 0, image.width // 2 - 1, image.height - 1)
+    elif side == "right":
+        box = (image.width // 2, 0, image.width - 1, image.height - 1)
+
+    draw.rectangle(box, fill=(0, 0, 0, 0))
+
+
 def render_thin_wall_or_canopy(sprite_sheet, tile):
     ''' Special case: thin tile or canopy
     '''
@@ -265,40 +282,29 @@ def render_thin_wall_or_canopy(sprite_sheet, tile):
     underlying_tile = tile[-1]
     sprite = tile_sprite(sprite_sheet, underlying_tile)
 
-    # North wall
-    if bitmask & 1:
-        wallsprite = sprite_sheet.crop((1*32, 10*32, 1*32 + 32, 10*32 + 32))
-        draw = ImageDraw.Draw(wallsprite)
-        draw.rectangle((0, wallsprite.height // 2, wallsprite.width, wallsprite.height), fill=(0, 0, 0, 0))
-        sprite.alpha_composite(wallsprite)
+    wall_options = {
+        1: (1, "bottom"),   # North
+        2: (2, "left"),     # East
+        4: (1, "top"),      # South
+        8: (2, "right"),    # West
+    }
 
-    # East wall
-    if bitmask & 2:
-        wallsprite = sprite_sheet.crop((2*32, 10*32, 2*32 + 32, 10*32 + 32))
-        draw = ImageDraw.Draw(wallsprite)
-        draw.rectangle((0, 0, wallsprite.width // 2 - 1, wallsprite.height - 1), fill=(0, 0, 0, 0))
-        sprite.alpha_composite(wallsprite)
+    for bit, (sprite_x, erase) in wall_options.items():
+        if bitmask & bit:
+            wallsprite = sprite_sheet.crop(
+                (sprite_x * 32, 10 * 32,
+                 sprite_x * 32 + 32, 10 * 32 + 32)
+            )
 
-    # South wall
-    if bitmask & 4:
-        wallsprite = sprite_sheet.crop((1*32, 10*32, 1*32 + 32, 10*32 + 32))
-        draw = ImageDraw.Draw(wallsprite)
-        draw.rectangle((0, 0, wallsprite.width, wallsprite.height // 2), fill=(0, 0, 0, 0))
-        sprite.alpha_composite(wallsprite)
-
-    # West wall
-    if bitmask & 8:
-        wallsprite = sprite_sheet.crop((2*32, 10*32, 2*32 + 32, 10*32 + 32))
-        draw = ImageDraw.Draw(wallsprite)
-        draw.rectangle((wallsprite.width // 2, 0, wallsprite.width - 1, wallsprite.height - 1), fill=(0, 0, 0, 0))
-        sprite.alpha_composite(wallsprite)
-
+            erase_half(wallsprite, erase)
+            sprite.alpha_composite(wallsprite)
 
     if bitmask & 16:
-        # bit 5, canopy. will do when I get to those levels.
+        # canopy
         pass
 
     return sprite
+
 
 def tile_sprite(sprite_sheet, tile_stack):
     '''
