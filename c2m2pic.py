@@ -5,6 +5,8 @@ import os
 import struct
 from enum import Enum
 from dataclasses import dataclass
+from pathlib import Path
+
 from PIL import Image, ImageDraw
 
 class RenderType(Enum):
@@ -384,12 +386,10 @@ def load_sprite_sheet(filename="./spritesheet.png", transparent_color=(82, 206, 
     return sprite_sheet
 
 
-def render_map(width, length, tiles):
+def render_map(width, length, tiles, sprite_sheet):
     '''
     Receives decoded tiles dict and returns rendered image
     '''
-    # Load the sprite sheet
-    sprite_sheet = load_sprite_sheet()
 
     # Create a new image for the map
     image = Image.new("RGBA", (width * 32, length * 32))
@@ -401,6 +401,77 @@ def render_map(width, length, tiles):
 
     return image
 
+
+LETTER_POSITIONS = {
+    " ": (0, 0),
+    ":": (26, 0),
+    ".": (14, 0),
+    "?": (31, 0),
+    **{
+        chr(ord("a") + i): (i + 1, 1)
+        for i in range(26)
+    },
+    **{
+        chr(ord("0") + i): (i + 16, 0)
+        for i in range(10)
+    },
+}
+
+
+def get_letter_sprite(sprite_sheet, letter):
+    position = LETTER_POSITIONS.get(letter.lower())
+
+    if position is None:
+        return Image.new("RGBA", (16, 16))
+
+    x, y = position
+
+    return sprite_sheet.crop((
+        x * 16,
+        y * 16,
+        x * 16 + 16,
+        y * 16 + 16
+    ))
+
+
+def render_text(sprite_sheet, text):
+    lines = text.splitlines()
+
+    width = max(len(line) for line in lines) * 16
+    height = len(lines) * 16
+
+    image = Image.new("RGBA", (width, height))
+
+    for y, line in enumerate(lines):
+        for x, letter in enumerate(line):
+            sprite = get_letter_sprite(sprite_sheet, letter)
+            image.alpha_composite(sprite, (x * 16, y * 16))
+
+    return image
+
+from PIL import Image
+
+
+def add_annotation(image, image_annotation, gap_before, gap_after, bg_color):
+    width = max(image.width, image_annotation.width)
+    height = (
+        image.height
+        + gap_before
+        + image_annotation.height
+        + gap_after
+    )
+
+    result = Image.new("RGBA", (width, height), bg_color)
+
+    # First image
+    result.alpha_composite(image, (0, 0))
+
+    # Second image
+    y = image.height + gap_before
+    result.alpha_composite(image_annotation, (0, y))
+
+    return result
+
 def c2m_to_pic(c2m_file, output_file):
     ''' 
     Full processing of a c2m file
@@ -410,6 +481,9 @@ def c2m_to_pic(c2m_file, output_file):
     output_dir = os.path.dirname(output_file)
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
+
+    file_path = Path(c2m_file)
+    file_name = file_path.name
 
     # Get sections from C2M file
     sections = get_sections(c2m_file)
@@ -431,17 +505,34 @@ def c2m_to_pic(c2m_file, output_file):
     width, length = sections["MAP"][:2]
     print(f"Map dimensions: {width} x {length}")
 
-    # print("Sections found:")
-    # for name, data in sections.items():
-    #     print(f"  {name!r}: {len(data)} bytes")
+    needed_chips = sections["MAP"].count(b"\x2A")
+    available_chips = needed_chips + sections["MAP"].count(b"\x2B")
 
     tiles = decode_tiles(sections["MAP"])
     # for (x, y), tile_list in tiles.items():
     #     print(f"Tile at ({x}, {y}): {tile_list}")
 
-    image = render_map(width, length, tiles)
-    image.save(output_file)
+    # Load the sprite sheet
+    sprite_sheet = load_sprite_sheet()
 
+    image = render_map(width, length, tiles, sprite_sheet)
+
+    annotations = [
+        f" {level_title}",
+        f" File: {file_name}",
+        f" Time: {time_to_beat}",
+        f" Needed chips: {needed_chips}",
+        f" Total chips: {available_chips}",
+    ]
+
+    for text in annotations:
+        image = add_annotation(
+            image, render_text(sprite_sheet, text),
+            0 if text != annotations[0] else 10,
+            10, (0, 0, 0)
+        )
+
+    image.save(output_file)
 
 def main():
     '''
