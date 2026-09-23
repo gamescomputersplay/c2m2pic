@@ -41,7 +41,7 @@ class TileType(Enum):
     FORCE_FLOOR_N = TileInfo(0x0A, 0, 19, RenderType.SINGLE)
     FORCE_FLOOR_E = TileInfo(0x0B, 2, 19, RenderType.SINGLE)
     FORCE_FLOOR_S = TileInfo(0x0C, 1, 19, RenderType.SINGLE)
-    FORCE_FLOOR_W = TileInfo(0x0D, 3, 19, RenderType.SINGLE)
+    FORCE_FLOOR_W = TileInfo(0x0D, 2, 20, RenderType.SINGLE)
     GREEN_TOGGLE_WALL = TileInfo(0x0E, 8, 9, RenderType.GREEN_TOGGLE_WALL)
     GREEN_TOGGLE_FLOOR = TileInfo(0x0F, 0, 9, RenderType.SINGLE)
 
@@ -49,8 +49,10 @@ class TileType(Enum):
     EXIT = TileInfo(0x14, 6, 2, RenderType.SINGLE)
     CHIP_THE_HERO = TileInfo(0x16, 0, 22, RenderType.DIRECTIONAL)
     BLOCK = TileInfo(0x17, 8, 1, RenderType.DIRECTIONAL)
+    WALKER = TileInfo(0x18, 0, 13, RenderType.DIRECTIONAL)
     SHIP = TileInfo(0x19, 8, 8, RenderType.DIRECTIONAL)
     THIN_WALL_S = TileInfo(0x1B, 1, 10, RenderType.LOWER_LAYER)
+    THIN_WALL_E = TileInfo(0x1C, 2, 10, RenderType.LOWER_LAYER)
     GRAVEL = TileInfo(0x1E, 9, 10, RenderType.SINGLE)
     GREEN_BUTTON = TileInfo(0x1F, 9, 6, RenderType.SINGLE)
 
@@ -77,7 +79,9 @@ class TileType(Enum):
     FAKE_BLUE_WALL = TileInfo(0x31, 10, 31, RenderType.SINGLE)
     DIRT = TileInfo(0x32, 4, 31, RenderType.SINGLE)
     ANT = TileInfo(0x33, 0, 7, RenderType.DIRECTIONAL)
+    CENTIPEDE = TileInfo(0x34, 1, 12, RenderType.DIRECTIONAL)
     BALL = TileInfo(0x35, 10, 10, RenderType.DIRECTIONAL)
+    BLOB = TileInfo(0x36, 0, 15, RenderType.DIRECTIONAL)
     ANGRY_TEETH = TileInfo(0x37, 0, 11, RenderType.DIRECTIONAL)
     FIREBALL = TileInfo(0x38, 15, 9, RenderType.DIRECTIONAL)
 
@@ -93,8 +97,10 @@ class TileType(Enum):
     TRAP = TileInfo(0x42, 9, 9, RenderType.SINGLE)
     CLONE_MACHINE = TileInfo(0x43, 15, 1, RenderType.SINGLE)
     CLUE = TileInfo(0x45, 5, 2, RenderType.SINGLE)
+    FORCE_FLOOR_RANDOM = TileInfo(0x46, 2, 21, RenderType.SINGLE)
 
     THIN_WALLS_OR_CANOPY = TileInfo(0x6d, 14, 3, RenderType.THIN_WALLS_OR_CANOPY)
+
 
 DIRECTIONAL_SPRITES = {
     TileType.CHIP_THE_HERO:
@@ -105,14 +111,10 @@ DIRECTIONAL_SPRITES = {
         [(0, 8), (2, 8), (4, 8), (6, 8)],
     TileType.SHIP:
         [(8, 8), (10, 8), (12, 8), (14, 8)],
-    TileType.FIREBALL:
-        [(15, 9), (15, 9), (15, 9), (15, 9)],
-    TileType.BALL:
-        [(10, 10), (10, 10), (10, 10), (10, 10)],
     TileType.ANT:
         [(0, 7), (4, 7), (8, 7), (12, 7)],
-    TileType.BLOCK:
-        [(8, 1), (8, 1), (8, 1), (8, 1)],
+    TileType.CENTIPEDE:
+        [(1, 12), (4, 12), (7, 12), (10, 12)],
     }
 
 
@@ -262,6 +264,7 @@ def erase_half(image, side):
     ''' Helper in case we need only half of teh sprite
     '''
     draw = ImageDraw.Draw(image)
+    box = (0, 0, 1, 1)
 
     if side == "top":
         box = (0, 0, image.width - 1, image.height // 2 - 1)
@@ -280,7 +283,7 @@ def render_thin_wall_or_canopy(sprite_sheet, tile):
     '''
     bitmask = tile[1]
     underlying_tile = tile[-1]
-    sprite = tile_sprite(sprite_sheet, underlying_tile)
+    sprite = render_tile(sprite_sheet, underlying_tile)
 
     wall_options = {
         1: (1, "bottom"),   # North
@@ -306,7 +309,7 @@ def render_thin_wall_or_canopy(sprite_sheet, tile):
     return sprite
 
 
-def tile_sprite(sprite_sheet, tile_stack):
+def render_tile(sprite_sheet, tile_stack):
     '''
     From a TileType tuple, return rendered image of a tile,
     with all elements superimposed
@@ -322,8 +325,9 @@ def tile_sprite(sprite_sheet, tile_stack):
 
         # Erase top section of South Thin Wall
         if tile_type == TileType.THIN_WALL_S:
-            draw = ImageDraw.Draw(sprite)
-            draw.rectangle((0, 0, sprite.width, sprite.height // 2), fill=(0, 0, 0, 0))
+            erase_half(sprite, "top")
+        if tile_type == TileType.THIN_WALL_E:
+            erase_half(sprite, "left")
 
         return sprite
 
@@ -332,12 +336,16 @@ def tile_sprite(sprite_sheet, tile_stack):
 
         tile_type, direction, lower_level = tile_stack
 
-        image = tile_sprite(sprite_sheet, lower_level)
+        image = render_tile(sprite_sheet, lower_level)
 
-        x, y = DIRECTIONAL_SPRITES[tile_type][direction]
+        if tile_type in DIRECTIONAL_SPRITES:
+            x, y = DIRECTIONAL_SPRITES[tile_type][direction]
+        else:
+            x = tile_type.value.sprite_x
+            y = tile_type.value.sprite_y
         overlay = sprite_sheet.crop(
-            (x * 32, y * 32, x * 32 + 32, y * 32 + 32)
-        ).convert("RGBA")
+                (x * 32, y * 32, x * 32 + 32, y * 32 + 32)
+            ).convert("RGBA")
 
         image.alpha_composite(overlay)
 
@@ -350,10 +358,10 @@ def tile_sprite(sprite_sheet, tile_stack):
 
     # Remaining case is a tile with a underlying layer
     # Render from the last tile toward the first
-    image = tile_sprite(sprite_sheet, tile_stack[-1])
+    image = render_tile(sprite_sheet, tile_stack[-1])
 
     for tile_part in reversed(tile_stack[:-1]):
-        overlay = tile_sprite(sprite_sheet, tile_part)
+        overlay = render_tile(sprite_sheet, tile_part)
         image.alpha_composite(overlay)
 
     return image
@@ -388,7 +396,7 @@ def render_map(width, length, tiles):
 
     for (x, y), tile_list in tiles.items():
         for tile in tile_list:
-            sprite = tile_sprite(sprite_sheet, tile)
+            sprite = render_tile(sprite_sheet, tile)
             image.paste(sprite, (x * 32, y * 32))
 
     return image
@@ -439,8 +447,8 @@ def main():
     '''
     Example of processing a c2m file
     '''
-    c2m_file = "./cc1/001-020/map011.c2m"  # Replace with the actual C2M file path
-    output_file = "./cc1_done/map011.png"  # Replace with the desired output PNG file path
+    c2m_file = "./cc1/021-040/map040.c2m"  # Replace with the actual C2M file path
+    output_file = "./cc1_done/map040.png"  # Replace with the desired output PNG file path
     c2m_to_pic(c2m_file, output_file)
 
 if __name__ == "__main__":
