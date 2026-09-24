@@ -296,13 +296,13 @@ def render_thin_wall_or_canopy(sprite_sheet, tile):
 
     for bit, (sprite_x, erase) in wall_options.items():
         if bitmask & bit:
-            wallsprite = sprite_sheet.crop(
+            wall_sprite = sprite_sheet.crop(
                 (sprite_x * 32, 10 * 32,
                  sprite_x * 32 + 32, 10 * 32 + 32)
             )
 
-            erase_half(wallsprite, erase)
-            sprite.alpha_composite(wallsprite)
+            erase_half(wall_sprite, erase)
+            sprite.alpha_composite(wall_sprite)
 
     if bitmask & 16:
         # canopy
@@ -419,6 +419,9 @@ LETTER_POSITIONS = {
 
 
 def get_letter_sprite(sprite_sheet, letter):
+    ''' Get sprites for a letter or another characters
+    (from the first rows] of the sprite sheet)
+    '''
     position = LETTER_POSITIONS.get(letter.lower())
 
     if position is None:
@@ -435,6 +438,8 @@ def get_letter_sprite(sprite_sheet, letter):
 
 
 def render_text(sprite_sheet, text):
+    ''' Given a line of text, render it in sprite letters
+    '''
     lines = text.splitlines()
 
     width = max(len(line) for line in lines) * 16
@@ -449,10 +454,10 @@ def render_text(sprite_sheet, text):
 
     return image
 
-from PIL import Image
-
 
 def add_annotation(image, image_annotation, gap_before, gap_after, bg_color):
+    ''' Add image_annotation to the bottom of image.
+    '''
     width = max(image.width, image_annotation.width)
     height = (
         image.height
