@@ -18,6 +18,9 @@ class RenderType(Enum):
     GREEN_TOGGLE_WALL = 4
     THIN_WALLS_OR_CANOPY = 5
 
+    MODIFIER = 6
+    SINGLE_MODIFIED = 7
+
 @dataclass(frozen=True)
 class TileInfo:
     ''' Class to store tile information
@@ -50,9 +53,10 @@ class TileType(Enum):
     BLUE_TELEPORT = TileInfo(0x11, 4, 10, RenderType.SINGLE)
     EXIT = TileInfo(0x14, 6, 2, RenderType.SINGLE)
     CHIP_THE_HERO = TileInfo(0x16, 0, 22, RenderType.DIRECTIONAL)
-    BLOCK = TileInfo(0x17, 8, 1, RenderType.DIRECTIONAL)
+    DIRT_BLOCK = TileInfo(0x17, 8, 1, RenderType.DIRECTIONAL)
     WALKER = TileInfo(0x18, 0, 13, RenderType.DIRECTIONAL)
     SHIP = TileInfo(0x19, 8, 8, RenderType.DIRECTIONAL)
+    ICE_BLOCK = TileInfo(0x1A, 10, 2, RenderType.DIRECTIONAL)
     THIN_WALL_S = TileInfo(0x1B, 1, 10, RenderType.LOWER_LAYER)
     THIN_WALL_E = TileInfo(0x1C, 2, 10, RenderType.LOWER_LAYER)
     GRAVEL = TileInfo(0x1E, 9, 10, RenderType.SINGLE)
@@ -103,8 +107,12 @@ class TileType(Enum):
 
     HIKING_BOOTS = TileInfo(0x59, 4, 6, RenderType.LOWER_LAYER)
 
+    CUSTOM_FLOOR = TileInfo(0x6B, 8, 4, RenderType.SINGLE_MODIFIED)
     THIN_WALLS_OR_CANOPY = TileInfo(0x6d, 14, 3, RenderType.THIN_WALLS_OR_CANOPY)
 
+    CUSTOM_WALL = TileInfo(0x70, 12, 4, RenderType.SINGLE_MODIFIED)
+
+    MODIFIER_8BIT = TileInfo(0x76, 0, 0, RenderType.MODIFIER)
     FLAG_10 = TileInfo(0x7A, 14, 2, RenderType.LOWER_LAYER)
     FLAG_100 = TileInfo(0x7B, 13, 2, RenderType.LOWER_LAYER)
     FLAG_1000 = TileInfo(0x7C, 12, 2, RenderType.LOWER_LAYER)
@@ -128,6 +136,12 @@ DIRECTIONAL_SPRITES = {
         [(1, 12), (4, 12), (7, 12), (10, 12)],
     }
 
+MODIFIED_SPRITES = {
+    TileType.CUSTOM_FLOOR:
+        [(8, 4), (9, 4), (10, 4), (11, 4)],
+    TileType.CUSTOM_WALL:
+        [(12, 4), (13, 4), (14, 4), (15, 4)],
+    }
 
 def get_sections(c2m_file):
     '''
@@ -228,6 +242,13 @@ def decode_tile(data, pos, tile_by_code):
     if tile_type.value.render == RenderType.LOWER_LAYER:
         lower_level, pos = decode_tile(data, pos, tile_by_code)
         return (tile_type, lower_level), pos
+
+    if tile_type.value.render == RenderType.MODIFIER:
+        if tile_type == TileType.MODIFIER_8BIT:
+            modifier = data[pos]
+        pos += 1
+        underlying_tile, pos = decode_tile(data, pos, tile_by_code)
+        return (underlying_tile, modifier), pos
 
     # Exception to how to display toggle-able wall
     if tile_type.value.render == RenderType.GREEN_TOGGLE_WALL:
@@ -365,6 +386,15 @@ def render_tile(sprite_sheet, tile_stack):
     # Thin wall or canopy: (tile_type, mask, lower_level)
     if len(tile_stack) == 3 and tile_stack[0].value.render == RenderType.THIN_WALLS_OR_CANOPY:
         image = render_thin_wall_or_canopy(sprite_sheet, tile_stack)
+        return image
+
+    # Thin wall or canopy: (tile_type, mask, lower_level)
+    if len(tile_stack) == 2 and tile_stack[0].value.render == RenderType.SINGLE_MODIFIED:
+        tile_type, modifier = tile_stack
+        x, y = MODIFIED_SPRITES[tile_type][modifier]
+        image = sprite_sheet.crop(
+                (x * 32, y * 32, x * 32 + 32, y * 32 + 32)
+            ).convert("RGBA")
         return image
 
     # Remaining case is a tile with a underlying layer
@@ -552,8 +582,8 @@ def main():
     '''
     Example of processing a c2m file
     '''
-    c2m_file = "./cc2/1-20/doorways.c2m"  # Replace with the actual C2M file path
-    output_file = "./cc2_done/1-20/doorways.png"  # Replace with the desired output PNG file path
+    c2m_file = "./cc2/1-20/frozen.c2m"  # Replace with the actual C2M file path
+    output_file = "./cc2_done/1-20/frozen.png"  # Replace with the desired output PNG file path
     c2m_to_pic(c2m_file, output_file)
 
 if __name__ == "__main__":
