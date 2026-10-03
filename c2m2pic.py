@@ -101,8 +101,17 @@ class TileType(Enum):
     CLUE = TileInfo(0x45, 5, 2, RenderType.SINGLE)
     FORCE_FLOOR_RANDOM = TileInfo(0x46, 2, 21, RenderType.SINGLE)
 
+    HIKING_BOOTS = TileInfo(0x59, 4, 6, RenderType.LOWER_LAYER)
+
     THIN_WALLS_OR_CANOPY = TileInfo(0x6d, 14, 3, RenderType.THIN_WALLS_OR_CANOPY)
 
+    FLAG_10 = TileInfo(0x7A, 14, 2, RenderType.LOWER_LAYER)
+    FLAG_100 = TileInfo(0x7B, 13, 2, RenderType.LOWER_LAYER)
+    FLAG_1000 = TileInfo(0x7C, 12, 2, RenderType.LOWER_LAYER)
+    NOT_ALLOWED = TileInfo(0x7F, 14, 5, RenderType.LOWER_LAYER)
+
+    FLAG_2X = TileInfo(0x80, 15, 2, RenderType.LOWER_LAYER)
+    KEY_THIEF = TileInfo(0x8A, 15, 21, RenderType.SINGLE)
 
 DIRECTIONAL_SPRITES = {
     TileType.CHIP_THE_HERO:
@@ -543,8 +552,8 @@ def main():
     '''
     Example of processing a c2m file
     '''
-    c2m_file = "./cc1/021-040/map040.c2m"  # Replace with the actual C2M file path
-    output_file = "./cc1_done/map040.png"  # Replace with the desired output PNG file path
+    c2m_file = "./cc2/1-20/doorways.c2m"  # Replace with the actual C2M file path
+    output_file = "./cc2_done/1-20/doorways.png"  # Replace with the desired output PNG file path
     c2m_to_pic(c2m_file, output_file)
 
 if __name__ == "__main__":
