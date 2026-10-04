@@ -241,6 +241,9 @@ def decode_tile(data, pos, tile_by_code):
 
     if tile_type.value.render == RenderType.LOWER_LAYER:
         lower_level, pos = decode_tile(data, pos, tile_by_code)
+        # NOT ALLOWED: Cross should be over the underlying thing
+        if isinstance(lower_level, tuple) and lower_level[0] == TileType.NOT_ALLOWED:
+            return (lower_level[0], tile_type, lower_level[1]), pos
         return (tile_type, lower_level), pos
 
     if tile_type.value.render == RenderType.MODIFIER:
@@ -388,7 +391,7 @@ def render_tile(sprite_sheet, tile_stack):
         image = render_thin_wall_or_canopy(sprite_sheet, tile_stack)
         return image
 
-    # Thin wall or canopy: (tile_type, mask, lower_level)
+    # Modified single tile (e.g. custom walls/floors)
     if len(tile_stack) == 2 and tile_stack[0].value.render == RenderType.SINGLE_MODIFIED:
         tile_type, modifier = tile_stack
         x, y = MODIFIED_SPRITES[tile_type][modifier]
@@ -582,8 +585,8 @@ def main():
     '''
     Example of processing a c2m file
     '''
-    c2m_file = "./cc2/1-20/frozen.c2m"  # Replace with the actual C2M file path
-    output_file = "./cc2_done/1-20/frozen.png"  # Replace with the desired output PNG file path
+    c2m_file = "./cc2/1-20/cobbler.c2m"  # Replace with the actual C2M file path
+    output_file = "./cc2_done/1-20/cobbler.png"  # Replace with the desired output PNG file path
     c2m_to_pic(c2m_file, output_file)
 
 if __name__ == "__main__":
